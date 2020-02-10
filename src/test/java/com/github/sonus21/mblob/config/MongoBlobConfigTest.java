@@ -16,15 +16,20 @@
 
 package com.github.sonus21.mblob.config;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.Test;
 
-import org.junit.jupiter.api.Test;
-
-class MongoBlobConfigTest {
-
-  @Test
-  void getBlobSize() {}
+public class MongoBlobConfigTest {
+  private MongoBlobConfig mongoBlobConfig = new MongoBlobConfig();
 
   @Test
-  void getBlobChunkCollectionName() {}
+  public void getBlobSize() {
+    mongoBlobConfig.setBlobSize(100000);
+    assert 100000L == mongoBlobConfig.getBlobSize();
+  }
+
+  @Test
+  public void getBlobChunkCollectionName() {
+    mongoBlobConfig.setBlobChunkCollectionName("yak!");
+    assert "yak!".equals(mongoBlobConfig.getBlobChunkCollectionName());
+  }
 }

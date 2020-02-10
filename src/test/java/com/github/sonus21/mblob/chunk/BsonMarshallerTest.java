@@ -16,15 +16,47 @@
 
 package com.github.sonus21.mblob.chunk;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
-import org.junit.jupiter.api.Test;
+import com.github.sonus21.mblob.utils.ObjectFactory;
+import org.bson.Document;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
+import test.blob.mongo.entity.Notification;
 
-class BsonMarshallerTest {
+@RunWith(MockitoJUnitRunner.StrictStubs.class)
+public class BsonMarshallerTest {
+  private MappingMongoConverter mappingMongoConverter = mock(MappingMongoConverter.class);
+  private BsonMarshaller bsonMarshaller = new BsonMarshaller(mappingMongoConverter);
 
   @Test
-  void write() {}
+  public void write() {
+    Notification notification = ObjectFactory.createBlobObject(false, 1);
+    Document d = new Document();
+    d.put("foo", "bar");
+    doAnswer(
+            invocation -> {
+              ((Document) invocation.getArguments()[1]).put("foo", "bar");
+              return null;
+            })
+        .when(mappingMongoConverter)
+        .write(eq(notification), any(Document.class));
+    assertEquals(d.toJson(), bsonMarshaller.write(notification));
+  }
 
   @Test
-  void read() {}
+  public void read() {
+    Notification notification = ObjectFactory.createBlobObject(false, 1);
+    Document d = new Document();
+    d.put("foo", "bar");
+    doReturn(notification).when(mappingMongoConverter).read(notification.getClass(), d);
+    assertEquals(notification, bsonMarshaller.read(notification, d.toJson()));
+  }
 }

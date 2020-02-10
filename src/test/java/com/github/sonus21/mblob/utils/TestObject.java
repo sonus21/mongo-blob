@@ -16,6 +16,20 @@
 
 package com.github.sonus21.mblob.utils;
 
-public class TestObject {
+import java.util.UUID;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
+@EqualsAndHashCode
+@Getter
+@Setter
+public class TestObject {
+  private String id;
+  private String name;
+
+  public TestObject() {
+    this.id = UUID.randomUUID().toString();
+    this.name = UUID.randomUUID().toString().toUpperCase();
+  }
 }

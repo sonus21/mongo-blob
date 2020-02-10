@@ -1,3 +1,19 @@
+/*
+ * Copyright 2020 Sonu Kumar
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.sonus21.mblob.aspect;
 
 import com.github.sonus21.mblob.op.BlobOpHandler;
@@ -5,6 +21,11 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 
+/**
+ * AOP handler that catches all the method calls going to {@link
+ * org.springframework.data.repository.CrudRepository}. This handles all CRUD operations. Aspect
+ * handler forwards the intercepted method requests to the {@link BlobOpHandler} class's methods.
+ */
 @Aspect
 public class BlobAspectHandler {
   private final BlobOpHandler blobOpHandler;

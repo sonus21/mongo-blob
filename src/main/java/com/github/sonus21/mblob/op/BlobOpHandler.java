@@ -3,9 +3,6 @@ package com.github.sonus21.mblob.op;
 import static com.github.sonus21.mblob.aspect.AspectUtil.collectArguments;
 import static com.github.sonus21.mblob.aspect.AspectUtil.getRepositoryMetaData;
 import static com.github.sonus21.mblob.aspect.AspectUtil.typeCastReturnType;
-import static com.github.sonus21.mblob.reflect.ReflectionUtility.getObjectModificationDetails;
-import static com.github.sonus21.mblob.reflect.ReflectionUtility.maybeSetId;
-import static com.github.sonus21.mblob.reflect.ReflectionUtility.reverseObjectModification;
 
 import com.github.sonus21.mblob.chunk.Chunk;
 import com.github.sonus21.mblob.chunk.ChunkManager;
@@ -24,6 +21,11 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.util.CollectionUtils;
 
+/**
+ * This handles all the crud related operations, those are forwarded from {@link
+ * com.github.sonus21.mblob.aspect.BlobAspectHandler}, currently only save, saveAll, findById,
+ * findAllById, findAll, delete, deleteById are handled.
+ */
 public class BlobOpHandler {
   private final ChunkManager chunkManager;
 
@@ -74,10 +76,10 @@ public class BlobOpHandler {
       if (o instanceof BlobDocument) {
         Collection<Chunk> chunks = chunkManager.createChunks((BlobDocument) o);
         if (!chunks.isEmpty()) {
-          Map<Field, Object> modifiedFields = getObjectModificationDetails(o);
+          Map<Field, Object> modifiedFields = ReflectionUtility.getObjectModificationDetails(o);
           // error case
           if (modifiedFields == null) {
-            reverseObjectModification(modifiedRecordDetail, args, true);
+            ReflectionUtility.reverseObjectModification(modifiedRecordDetail, args, true);
             return new HashMap<>();
           }
           modifiedRecordDetail.put(i, modifiedFields);
@@ -125,10 +127,10 @@ public class BlobOpHandler {
 
   private Object handleSave(ProceedingJoinPoint pjp) throws Throwable {
     List<Object> args = collectArguments(pjp);
-    maybeSetId(args);
+    ReflectionUtility.maybeSetId(args);
     Map<Integer, Map<Field, Object>> objectModificationDetail = saveRecords(args);
     pjp.proceed();
-    reverseObjectModification(objectModificationDetail, args, false);
+    ReflectionUtility.reverseObjectModification(objectModificationDetail, args, false);
     return typeCastReturnType(pjp, args);
   }
 
@@ -141,7 +143,7 @@ public class BlobOpHandler {
     }
     if (isIdClass(metadata, args.get(0))) {
       // deleteById
-      Optional o = ((CrudRepository) pjp.getTarget()).findById(args.get(0));
+      Optional<?> o = ((CrudRepository) pjp.getTarget()).findById(args.get(0));
       o.ifPresent(value -> deleteObjects(Collections.singletonList(value)));
     } else {
       // delete or deleteAll

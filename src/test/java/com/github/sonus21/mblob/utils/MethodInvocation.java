@@ -16,6 +16,68 @@
 
 package com.github.sonus21.mblob.utils;
 
-public class MethodInvocation {
+import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Method;
+import org.springframework.aop.ProxyMethodInvocation;
 
+public class MethodInvocation implements ProxyMethodInvocation {
+  private Object[] args = null;
+
+  public MethodInvocation(Object[] args) {
+    this.args = args;
+  }
+
+  @Override
+  public Object getProxy() {
+    return null;
+  }
+
+  @Override
+  public org.aopalliance.intercept.MethodInvocation invocableClone() {
+    return null;
+  }
+
+  @Override
+  public org.aopalliance.intercept.MethodInvocation invocableClone(Object... arguments) {
+    return null;
+  }
+
+  @Override
+  public void setArguments(Object... arguments) {}
+
+  @Override
+  public void setUserAttribute(String key, Object value) {}
+
+  @Override
+  public Object getUserAttribute(String key) {
+    return null;
+  }
+
+  @Override
+  public Method getMethod() {
+    return null;
+  }
+
+  @Override
+  public Object[] getArguments() {
+    if (args == null) {
+      return new Object[] {};
+    }
+    return args;
+  }
+
+  @Override
+  public Object proceed() throws Throwable {
+    return null;
+  }
+
+  @Override
+  public Object getThis() {
+    return null;
+  }
+
+  @Override
+  public AccessibleObject getStaticPart() {
+    return null;
+  }
 }

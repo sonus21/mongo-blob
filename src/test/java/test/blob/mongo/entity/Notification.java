@@ -2,6 +2,7 @@ package test.blob.mongo.entity;
 
 import com.github.sonus21.mblob.document.BlobDocument;
 import com.github.sonus21.mblob.document.BlobField;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -28,12 +29,14 @@ public class Notification extends BlobDocument {
   @BlobField private Collection<User> users;
 
   public static Notification create(int objectCount) {
-    List<User> users = new ArrayList<>();
-    for (int i = 0; i < objectCount; i++) {
-      users.add(User.getInstance());
-    }
     Notification notification = new Notification();
-    notification.setUsers(users);
+    if (objectCount > 0) {
+      List<User> users = new ArrayList<>();
+      for (int i = 0; i < objectCount; i++) {
+        users.add(User.getInstance());
+      }
+      notification.setUsers(users);
+    }
     notification.setId(UUID.randomUUID().toString());
     return notification;
   }

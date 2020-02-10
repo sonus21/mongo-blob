@@ -1,118 +1,80 @@
+/*
+ * Copyright 2020 Sonu Kumar
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.github.sonus21.mblob.chunk;
 
-import static com.mongodb.client.model.Filters.eq;
-
-import com.github.sonus21.mblob.Pair;
 import com.github.sonus21.mblob.document.BlobDocument;
-import com.mongodb.BasicDBObject;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.UpdateOneModel;
-import com.mongodb.client.model.UpdateOptions;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import org.bson.Document;
-import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
+/**
+ * ChunkManager handles the operations related to chunk(s). It supports the chunk management in the
+ * database, that stores the chunk in database and find the set of chunks from the database.
+ */
+@Slf4j
 public class ChunkManager {
-  private final Integer maxDocumentSizeInByte;
-  private final MappingMongoConverter mappingMongoConverter;
-  private final MongoDatabase mongoDatabase;
-  private static final String CHUNK_COLLECTION_NAME = "blob_chunk";
-  private static final int FIND_BATCH_SIZE = 500;
-
-  private Pair<Integer, String> getChunkDetail(BlobDocument o) {
-    Document bson = new Document();
-    mappingMongoConverter.write(o, bson);
-    String data = bson.toJson();
-    int size = data.length();
-    int count = size / maxDocumentSizeInByte;
-    if (size % maxDocumentSizeInByte != 0) {
-      count += 1;
-    }
-    return new Pair<>(count, data);
-  }
+  private final ChunkDao chunkDao;
+  private final BsonMarshaller bsonMarshaller;
+  private final ChunkPartitionManager chunkPartitionManager;
+  private static final int FIND_BATCH_SIZE = 100;
 
   public ChunkManager(
-      Integer maxDocumentSizeInByte,
-      MappingMongoConverter mappingMongoConverter,
-      MongoDatabase mongoDatabase) {
-    this.maxDocumentSizeInByte = maxDocumentSizeInByte;
-    this.mappingMongoConverter = mappingMongoConverter;
-    this.mongoDatabase = mongoDatabase;
+      BsonMarshaller bsonMarshaller,
+      ChunkPartitionManager chunkPartitionManager,
+      ChunkDao chunkDao) {
+    this.chunkDao = chunkDao;
+    Assert.notNull(bsonMarshaller, "bsonMarshaller cannot be null");
+    Assert.notNull(chunkPartitionManager, "chunkPartitionManager cannot be null");
+    Assert.notNull(chunkDao, "chunkDao cannot be null");
+    this.bsonMarshaller = bsonMarshaller;
+    this.chunkPartitionManager = chunkPartitionManager;
   }
 
+  /**
+   * Create requires chunks and store them into the database, each chunk is stored in individual
+   * record. Bulk write operation is used in the case of large document leads to multiple chunks.
+   *
+   * @param entity entity that may require split.
+   * @return collection of chunks.
+   */
   public Collection<Chunk> createChunks(BlobDocument entity) {
-    List<Chunk> chunks = chunks(entity);
+    Assert.notNull(entity, "entity cannot be null");
+    List<Chunk> chunks = chunkPartitionManager.chunks(entity);
     if (!chunks.isEmpty()) {
-      List<UpdateOneModel<Document>> updateOneModels = new ArrayList<>();
-      UpdateOptions updateOptions = new UpdateOptions();
-      updateOptions.upsert(true);
-      for (Chunk chunk : chunks) {
-        BasicDBObject updateFields = new BasicDBObject();
-        updateFields.append("data", chunk.getData());
-        updateFields.append("order", chunk.getOrder());
-        BasicDBObject setQuery = new BasicDBObject();
-        setQuery.append("$set", updateFields);
-        updateOneModels.add(
-            new UpdateOneModel<>(eq("_id", chunk.getId()), setQuery, updateOptions));
-      }
-      mongoDatabase.getCollection(CHUNK_COLLECTION_NAME).bulkWrite(updateOneModels);
+      chunkDao.saveChunks(chunks);
     }
     return chunks;
   }
 
-  private List<Chunk> chunks(BlobDocument o) {
-    Pair<Integer, String> chunkDetail = getChunkDetail(o);
-    List<Chunk> chunks = new ArrayList<>();
-    String data = chunkDetail.getSecond();
-    int length = data.length();
-    if (chunkDetail.getFirst() > 1) {
-      for (int i = 0; i < chunkDetail.getFirst(); i++) {
-        int start = i * maxDocumentSizeInByte;
-        Chunk chunk =
-            new Chunk(
-                UUID.randomUUID().toString(),
-                i,
-                data.substring(start, Math.min(length, start + maxDocumentSizeInByte)));
-        chunks.add(chunk);
-      }
-    }
-    return chunks;
-  }
-
+  /**
+   * Delete list of chunks from the database
+   *
+   * @param ids list of ids of those chunks
+   */
   public void deleteChunks(Collection<String> ids) {
-    if (ids.isEmpty()) {
+    if (CollectionUtils.isEmpty(ids)) {
       return;
     }
-    Query query = new Query();
-    query.addCriteria(Criteria.where("_id").in(ids));
-    Document queryObj = new Document();
-    queryObj.putAll(query.getQueryObject());
-    mongoDatabase.getCollection(CHUNK_COLLECTION_NAME).deleteMany(queryObj);
-  }
-
-  private Map<String, Chunk> getChunks(List<String> chunkIds) {
-    Query query = new Query();
-    query.addCriteria(Criteria.where("_id").in(chunkIds));
-    Document queryObj = new Document();
-    queryObj.putAll(query.getQueryObject());
-    FindIterable<Document> results =
-        mongoDatabase.getCollection(CHUNK_COLLECTION_NAME).find(queryObj);
-    Map<String, Chunk> chunkIdToChunk = new HashMap<>();
-    for (Document doc : results) {
-      Chunk chunk = Chunk.getInstance(doc);
-      chunkIdToChunk.put(chunk.getId(), chunk);
-    }
-    return chunkIdToChunk;
+    chunkDao.deleteChunks(ids);
   }
 
   private void setChunkDetail(
@@ -120,23 +82,41 @@ public class ChunkManager {
     if (chunkIds.isEmpty()) {
       return;
     }
-    Map<String, Chunk> chunkIdToChunk = getChunks(chunkIds);
+    Map<String, Chunk> chunkIdToChunk = chunkDao.getChunks(chunkIds);
     for (BlobDocument blobDocument : updateRequiredDocs) {
       List<Chunk> chunks = new ArrayList<>();
       for (String id : blobDocument.getChunkIds()) {
-        chunks.add(chunkIdToChunk.get(id));
+        Chunk chunk = chunkIdToChunk.get(id);
+        if (chunk == null) {
+          log.error("Chunk data is not found in DB for id: {}", id);
+        } else if (!chunk.isValid()) {
+          log.error("Chunk data is not valid in DB for id: {}, data: {}", id, chunk);
+        } else {
+          chunks.add(chunkIdToChunk.get(id));
+        }
       }
-      chunks.sort(Comparator.comparingInt(Chunk::getOrder));
-      StringBuilder sb = new StringBuilder();
-      for (Chunk chunk : chunks) {
-        sb.append(chunk.getData());
+      if (!chunks.isEmpty()) {
+        chunks.sort(Comparator.comparingInt(Chunk::getOrder));
+        StringBuilder sb = new StringBuilder();
+        for (Chunk chunk : chunks) {
+          sb.append(chunk.getData());
+        }
+        BlobDocument newDocument = bsonMarshaller.read(blobDocument, sb.toString());
+        updatedObjects.add(newDocument);
+      } else {
+        updatedObjects.add(blobDocument);
       }
-      Document document = Document.parse(sb.toString());
-      BlobDocument newDocument = mappingMongoConverter.read(blobDocument.getClass(), document);
-      updatedObjects.add(newDocument);
     }
   }
 
+  /**
+   * Update set of entities, this will bring the document from the chunk collection, and mapped it
+   * back to the original document. Batching is used to avoid the large query execution and large
+   * data download in one shot.
+   *
+   * @param entities list of entities those require update
+   * @return list of updated entities.
+   */
   public List<Object> getUpdatedEntities(List<Object> entities) {
     if (entities.isEmpty()) {
       return entities;

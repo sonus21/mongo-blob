@@ -16,12 +16,52 @@
 
 package com.github.sonus21.mblob.chunk;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
-import org.junit.jupiter.api.Test;
+import com.github.sonus21.mblob.utils.ObjectFactory;
+import java.util.Collections;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.junit.MockitoJUnitRunner;
+import test.blob.mongo.entity.Notification;
 
-class ChunkPartitionManagerTest {
+@RunWith(MockitoJUnitRunner.StrictStubs.class)
+public class ChunkPartitionManagerTest {
+  private int blobSize = 100;
+  private BsonMarshaller bsonMarshaller = mock(BsonMarshaller.class);
+  private ChunkPartitionManager chunkPartitionManager =
+      new ChunkPartitionManager(blobSize, bsonMarshaller);
 
   @Test
-  void chunks() {}
+  public void chunksBelowThreshold() {
+    Notification notification = ObjectFactory.createBlobObject(false, 1);
+    doReturn("bsonMarshaller").when(bsonMarshaller).write(notification);
+    assertEquals(Collections.emptyList(), chunkPartitionManager.chunks(notification));
+  }
+
+  @Test
+  public void chunksEqualToThreshold() {
+    Notification notification = ObjectFactory.createBlobObject(false, 1);
+    doReturn(RandomStringUtils.random(blobSize)).when(bsonMarshaller).write(notification);
+    assertEquals(Collections.emptyList(), chunkPartitionManager.chunks(notification));
+  }
+
+  @Test
+  public void divisibleToThreshold() {
+    Notification notification = ObjectFactory.createBlobObject(false, 1);
+    doReturn(RandomStringUtils.random(blobSize * 10)).when(bsonMarshaller).write(notification);
+    assertEquals(10, chunkPartitionManager.chunks(notification).size());
+  }
+
+  @Test
+  public void nonDivisibleToThreshold() {
+    Notification notification = ObjectFactory.createBlobObject(false, 1);
+    doReturn(RandomStringUtils.random(blobSize * 10 + blobSize / 2))
+        .when(bsonMarshaller)
+        .write(notification);
+    assertEquals(11, chunkPartitionManager.chunks(notification).size());
+  }
 }

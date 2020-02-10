@@ -2,6 +2,7 @@ package test.blob.mongo;
 
 import static org.junit.Assert.assertTrue;
 
+import com.github.sonus21.mblob.utils.ObjectFactory;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,7 @@ public class BlobSaveTest extends BaseTest {
     notificationRepository.deleteAll();
     List<Notification> notifications = new ArrayList<>();
     for (int i = 0; i < 5; i++) {
-      notifications.add(Notification.create(objectCount));
+      notifications.add(ObjectFactory.createBlobObject(false, objectCount));
     }
 
     Iterable<Notification> iterable = notificationRepository.saveAll(notifications);

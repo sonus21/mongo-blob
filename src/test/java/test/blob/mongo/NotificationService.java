@@ -1,5 +1,6 @@
 package test.blob.mongo;
 
+import com.github.sonus21.mblob.utils.ObjectFactory;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,7 @@ public class NotificationService {
   @NonNull private NotificationRepository notificationRepository;
 
   public Notification create(int objectCount) {
-    Notification notification = Notification.create(objectCount);
+    Notification notification = ObjectFactory.createBlobObject(false, objectCount);
     notificationRepository.save(notification);
     return notification;
   }

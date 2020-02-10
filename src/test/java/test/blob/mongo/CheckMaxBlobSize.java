@@ -1,5 +1,6 @@
 package test.blob.mongo;
 
+import com.github.sonus21.mblob.utils.ObjectFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.BsonMaximumSizeExceededException;
 import org.junit.Test;
@@ -20,7 +21,7 @@ public class CheckMaxBlobSize extends BaseTest {
   @Test(expected = BsonMaximumSizeExceededException.class)
   public void checkBlobSize() {
     notificationRepository.deleteAll();
-    Notification notification = Notification.create(objectCount);
+    Notification notification = ObjectFactory.createBlobObject(false, objectCount);
     notificationRepository.save(notification);
   }
 }
